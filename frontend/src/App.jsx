@@ -1,22 +1,69 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import ScanScreen from './components/ScanScreen';
 import StackScreen from './components/StackScreen';
 import MapScreen from './components/MapScreen';
+import Onboarding, { STEPS } from './components/Onboarding';
 import { api } from './lib/api';
 
-// Seed stack so a demo never opens on an empty screen.
+// Seed stack so the first-run demo has real red/yellow/green lines to point
+// at. Cleared the moment onboarding finishes (see finishOnboarding below).
 const SEED = [
   { name: 'metformin', dosage: '500 mg', frequency: '2× daily' },
   { name: 'lisinopril', dosage: '10 mg', frequency: 'daily' },
   { name: 'atorvastatin', dosage: '20 mg', frequency: 'daily' },
 ];
 
+function hasOnboarded() {
+  try { return localStorage.getItem('medstack_onboarded') === 'true'; } catch { return false; }
+}
+
 export default function App() {
-  const [tab, setTab] = useState('stack');
-  const [drugs, setDrugs] = useState(SEED);
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
+  const [onboardStep, setOnboardStep] = useState(0);
+  const [tab, setTab] = useState(showOnboarding ? STEPS[0].tab : 'stack');
+  const [drugs, setDrugs] = useState(() => (hasOnboarded() ? [] : SEED));
   const [pairs, setPairs] = useState([]);
   const [summary, setSummary] = useState({ red: 0, amber: 0, green: 0 });
   const [loading, setLoading] = useState(false);
+
+  const appRef = useRef(null);
+  const scanBtnRef = useRef(null);
+  const stackBtnRef = useRef(null);
+  const mapBtnRef = useRef(null);
+  const [targetRects, setTargetRects] = useState({});
+  const [appHeight, setAppHeight] = useState(0);
+
+  useEffect(() => {
+    if (!showOnboarding) return;
+    setTab(STEPS[onboardStep].tab);
+  }, [showOnboarding, onboardStep]);
+
+  useEffect(() => {
+    if (!showOnboarding) return;
+    function measure() {
+      const appRect = appRef.current?.getBoundingClientRect();
+      if (!appRect) return;
+      const rel = (el) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { left: r.left - appRect.left, top: r.top - appRect.top, width: r.width, height: r.height };
+      };
+      setAppHeight(appRect.height);
+      setTargetRects({ scan: rel(scanBtnRef.current), stack: rel(stackBtnRef.current), map: rel(mapBtnRef.current) });
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [showOnboarding, onboardStep]);
+
+  function finishOnboarding() {
+    try { localStorage.setItem('medstack_onboarded', 'true'); } catch {}
+    setShowOnboarding(false);
+    setDrugs([]);
+    setPairs([]);
+    setSummary({ red: 0, amber: 0, green: 0 });
+    setTab('scan');
+  }
 
   const recheck = useCallback(async (list) => {
     if (list.length < 2) { setPairs([]); setSummary({ red: 0, amber: 0, green: 0 }); return; }
@@ -38,7 +85,9 @@ export default function App() {
     if (!d?.name) return;
     setDrugs((prev) => {
       if (prev.some((x) => x.name.toLowerCase() === d.name.toLowerCase())) return prev;
-      const next = [...prev, d];
+      // days: [] means "not grouped" — shows up regardless of which day is
+      // selected on the map. Grouping into days is entirely optional.
+      const next = [...prev, { ...d, days: d.days || [] }];
       recheck(next);
       return next;
     });
@@ -53,8 +102,12 @@ export default function App() {
     });
   }
 
+  function updateDrugDays(name, days) {
+    setDrugs((prev) => prev.map((x) => (x.name.toLowerCase() === name.toLowerCase() ? { ...x, days } : x)));
+  }
+
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       <header className="app__header">
         <div className="brand">
           <span className="brand__mark">Med<em>Stack</em></span>
@@ -66,26 +119,39 @@ export default function App() {
         {tab === 'scan' && <ScanScreen onAdd={addDrug} />}
         {tab === 'stack' && (
           <StackScreen drugs={drugs} pairs={pairs} summary={summary}
-            onRemove={removeDrug} onGoScan={() => setTab('scan')} />
+            onRemove={removeDrug} onUpdateDays={updateDrugDays} onGoScan={() => setTab('scan')} />
         )}
-        {tab === 'map' && <MapScreen drugs={drugs} pairs={pairs} summary={summary} loading={loading} />}
+        {tab === 'map' && <MapScreen drugs={drugs} pairs={pairs} loading={loading} />}
 
-        <p className="disclaimer">
-          MedStack is a prototype, not medical advice. Always confirm with a doctor or pharmacist.
-        </p>
+        {tab !== 'scan' && (
+          <p className="disclaimer">
+            MedStack is a prototype, not medical advice. Always confirm with a doctor or pharmacist.
+          </p>
+        )}
       </main>
 
       <nav className="tabbar">
-        <button className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>
+        <button ref={scanBtnRef} className={tab === 'scan' ? 'active' : ''} onClick={() => !showOnboarding && setTab('scan')}>
           <IconCam /> Scan
         </button>
-        <button className={tab === 'stack' ? 'active' : ''} onClick={() => setTab('stack')}>
+        <button ref={stackBtnRef} className={tab === 'stack' ? 'active' : ''} onClick={() => !showOnboarding && setTab('stack')}>
           <IconList /> Stack
         </button>
-        <button className={tab === 'map' ? 'active' : ''} onClick={() => setTab('map')}>
+        <button ref={mapBtnRef} className={tab === 'map' ? 'active' : ''} onClick={() => !showOnboarding && setTab('map')}>
           <IconMap /> Map
         </button>
       </nav>
+
+      {showOnboarding && (
+        <Onboarding
+          step={onboardStep}
+          targetRects={targetRects}
+          appHeight={appHeight}
+          onNext={() => setOnboardStep((n) => n + 1)}
+          onSkip={finishOnboarding}
+          onFinish={finishOnboarding}
+        />
+      )}
     </div>
   );
 }

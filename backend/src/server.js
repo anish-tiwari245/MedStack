@@ -64,7 +64,9 @@ const pairs = [];
     for (let j = i + 1; j < drugs.length; j++) {
       const r = await resolveInteraction(drugs[i], drugs[j]);
       pairs.push({ drugA: drugs[i], drugB: drugs[j], ...r });
-      if (r.source === 'live') await new Promise((s) => setTimeout(s, 1200));
+      // Throttle regardless of outcome — a failed/rate-limited call still hit
+      // Firecrawl, so skipping the delay on failure only makes the rate limit worse.
+      await new Promise((s) => setTimeout(s, 1200));
     }
   }
 

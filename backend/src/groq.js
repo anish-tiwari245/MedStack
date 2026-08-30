@@ -4,8 +4,8 @@
 // Groq is OpenAI-compatible, so we use the chat/completions endpoint.
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile';
+const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b';
+const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
 
 function requireKey() {
   const apiKey = process.env.GROQ_API_KEY;

@@ -3,8 +3,10 @@ import { useMemo } from 'react';
 const SEV = {
   red: { line: '#c2453b', node: '#f6e3e1', stroke: '#c2453b', text: '#8f2f28' },
   yellow: { line: '#c98a1e', node: '#f7ecd6', stroke: '#c98a1e', text: '#8a5e12' },
-  green: { line: '#d3ddd8', node: '#ffffff', stroke: '#9fb3ab', text: '#2c6b4e' },
+  green: { line: '#4f9d74', node: '#e2f0e8', stroke: '#4f9d74', text: '#2c6b4e' },
 };
+// Untapped node state — neutral, not tied to any severity color.
+const NEUTRAL = { node: '#ffffff', stroke: '#9fb3ab', text: '#3c4a45' };
 const WEIGHT = { red: 3, yellow: 2, green: 1 };
 
 // Lay nodes out on a circle so the graph reads cleanly at any count.
@@ -19,7 +21,7 @@ function layout(n, cx, cy, r) {
   return pts;
 }
 
-export default function SafetyGraph({ drugs, pairs, onSelectPair, highlightKey }) {
+export default function SafetyGraph({ drugs, pairs, onSelectPair, highlightKey, tappedKey }) {
   const W = 340, H = 340, cx = W / 2, cy = H / 2;
   const R = drugs.length <= 2 ? 70 : drugs.length <= 4 ? 95 : 110;
   const pos = useMemo(() => layout(drugs.length, cx, cy, R), [drugs.length, R]);
@@ -30,19 +32,18 @@ export default function SafetyGraph({ drugs, pairs, onSelectPair, highlightKey }
     return m;
   }, [drugs]);
 
-  // worst severity per node, to tint the node ring
+  // Only the two nodes on either end of the tapped line pick up a severity
+  // color; everything else stays neutral until tapped.
   const nodeSeverity = useMemo(() => {
-    const sev = drugs.map(() => 'green');
-    const rank = { green: 0, yellow: 1, red: 2 };
-    pairs.forEach((p) => {
-      const a = index.get(p.drugA.toLowerCase());
-      const b = index.get(p.drugB.toLowerCase());
-      [a, b].forEach((i) => {
-        if (i != null && rank[p.severity] > rank[sev[i]]) sev[i] = p.severity;
-      });
-    });
+    const sev = drugs.map(() => null);
+    const tapped = tappedKey && pairs.find((p) => [p.drugA, p.drugB].sort().join('|') === tappedKey);
+    if (tapped) {
+      const a = index.get(tapped.drugA.toLowerCase());
+      const b = index.get(tapped.drugB.toLowerCase());
+      [a, b].forEach((i) => { if (i != null) sev[i] = tapped.severity; });
+    }
     return sev;
-  }, [drugs, pairs, index]);
+  }, [drugs, pairs, index, tappedKey]);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Medication interaction map">
@@ -77,7 +78,7 @@ export default function SafetyGraph({ drugs, pairs, onSelectPair, highlightKey }
 
       {drugs.map((d, i) => {
         const sev = nodeSeverity[i];
-        const s = SEV[sev];
+        const s = sev ? SEV[sev] : NEUTRAL;
         const short = d.name.length > 9 ? d.name.slice(0, 8) + '.' : d.name;
         return (
           <g key={d.name} style={{ animation: `pop 0.3s ease ${i * 0.05}s both` }}>

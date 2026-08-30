@@ -68,12 +68,12 @@ export default function ScanScreen({ onAdd }) {
   }
 
   return (
-    <div style={{ paddingTop: 8 }}>
-      <p className="eyebrow" style={{ marginBottom: 10 }}>Add a medication</p>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, paddingTop: 8, gap: 6 }}>
+      <p className="eyebrow" style={{ flexShrink: 0 }}>Add a medication</p>
 
       {!manual && (
-        <div className="card" style={{ overflow: 'hidden', position: 'relative' }}>
-          <div style={{ position: 'relative', aspectRatio: '3/4', background: '#12201c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="card" style={{ overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, background: '#12201c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <video ref={videoRef} playsInline muted
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: status === 'live' || status === 'reading' ? 'block' : 'none' }} />
 
@@ -87,7 +87,7 @@ export default function ScanScreen({ onAdd }) {
             {(status === 'live' || status === 'reading') && <Frame reading={status === 'reading'} />}
           </div>
 
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
             {status === 'idle' && (
               <button className="btn-primary" onClick={startCamera}><CamIcon small /> Open camera</button>
             )}
@@ -103,7 +103,7 @@ export default function ScanScreen({ onAdd }) {
       )}
 
       {manual && (
-        <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
           <div>
             <label className="eyebrow">Medication name</label>
             <input value={mName} onChange={(e) => setMName(e.target.value)} placeholder="e.g. warfarin"
@@ -119,7 +119,7 @@ export default function ScanScreen({ onAdd }) {
         </div>
       )}
 
-      {error && <p style={{ color: 'var(--red-ink)', fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--red-ink)', fontSize: 12.5, lineHeight: 1.4, flexShrink: 0 }}>{error}</p>}
     </div>
   );
 }
